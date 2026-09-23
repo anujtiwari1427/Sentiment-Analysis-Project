@@ -1,0 +1,25 @@
+column_name,data_type,valid_count,missing_count,missing_percentage,unique_values_count
+Timestamp,datetime64[us],131,0,0.0,131
+Email address,str,131,0,0.0,131
+Enter Your Name ,str,131,0,0.0,130
+Age,str,131,0,0.0,6
+Which social media platform do you use most to discover local brands?,str,131,0,0.0,5
+What type of local brand do you interact with most on social media?,str,131,0,0.0,5
+What usually influences your opinion about a local brand on social media?,str,131,0,0.0,5
+Have you ever checked reviews or comments before purchasing from a local brand?,str,131,0,0.0,2
+Have you ever changed your opinion about a local brand after reading negative comments?,str,131,0,0.0,2
+Do you think social-media comments accurately reflect customers' experiences?,str,131,0,0.0,2
+Which factors affect your sentiment toward a local brand? (Select all that apply),str,131,0,0.0,42
+What types of social-media content make you trust a local brand? (Select all that apply),str,131,0,0.0,36
+What makes you feel negatively about a local brand online? (Select all that apply),str,131,0,0.0,47
+How would you rate your overall trust in local brands that actively engage with customers on social media?,int64,131,0,0.0,5
+How strongly do social-media reviews influence your purchase decision?,int64,131,0,0.0,5
+How satisfied are you with the way local brands respond to customer complaints on social media?,int64,131,0,0.0,5
+How often do you read comments about a local brand before purchasing its product/service?,str,131,0,0.0,5
+"How often do you interact with local brands through likes, comments, shares, or messages?",str,131,0,0.0,5
+How often do you encounter negative opinions about local brands on Instagram/Twitter?,str,131,0,0.0,5
+"In your opinion, which sentiment—positive, negative, or neutral—is most commonly expressed about local brands on social media?",str,131,0,0.0,4
+Do you think sentiment analysis can help local brands understand their customers better?,str,131,0,0.0,5
+How important is it for local brands to respond to negative customer feedback publicly?,str,131,0,0.0,5
+What is the main reason that makes you develop a positive or negative opinion about a local brand on social media?,str,130,1,0.76,118
+What suggestions would you give local brands to improve their image and customer sentiment on Instagram/Twitter?,str,129,2,1.53,122
