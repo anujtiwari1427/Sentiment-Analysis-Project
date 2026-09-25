@@ -25,8 +25,8 @@ ROOT_DIR: Path = Path(__file__).resolve().parents[1]
 # Inject the 'src' directory into sys.path to enable clean local imports
 sys.path.insert(0, str(ROOT_DIR / 'src'))
 
-# Import text normalization and lexicon sentiment functions from sentiment_utils
-from sentiment_utils import clean_text, lexicon_sentiment
+# Import text normalization, aspect extraction, and lexicon sentiment functions from sentiment_utils
+from sentiment_utils import clean_text, lexicon_sentiment, extract_aspect
 
 # Define file paths to serialized model binary and vectorizer artifacts
 MODEL_FILE_PATH: Path = ROOT_DIR / 'models' / 'sentiment_model.joblib'
@@ -211,6 +211,7 @@ class SentimentPredictor:
             'lexicon_sentiment': lex_label,
             'lexicon_score': lex_score,
             'consensus_sentiment': consensus,
+            'primary_aspect': extract_aspect(normalized_text),
             'explanation': rationale
         }
 

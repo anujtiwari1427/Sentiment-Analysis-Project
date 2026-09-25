@@ -1,29 +1,20 @@
 # ==============================================================================
 # Application: app.py
 # Description: Production-grade interactive Streamlit web application for Local
-# Brand Sentiment Analysis. Features real-time multi-engine sentiment prediction,
-# confidence score gauges, keyword highlighting, EDA visualization galleries,
-# interactive dataset exploration, and model performance metrics.
-# Every single line is documented with technical and theoretical explanations.
+# Brand Sentiment Analysis. Features an executive UI design with real-time
+# multi-engine sentiment prediction, interactive Plotly visualizations,
+# confidence score gauges, keyword highlighting, EDA charts, and dataset explorer.
 # ==============================================================================
 
-# Import Streamlit framework for rapid, interactive Python web application rendering
-import streamlit as st
-
-# Import Path from pathlib for safe, cross-platform filesystem navigation
-from pathlib import Path
-
-# Import sys module to modify runtime module lookup paths dynamically
-import sys
-
-# Import json module to parse serialized evaluation metrics
 import json
+from pathlib import Path
+import sys
+from typing import Any, Dict, List, Optional
 
-# Import typing primitives for comprehensive type hints across functions
-from typing import Dict, Any, List, Optional
-
-# Import pandas for data manipulation, filtering, and tabular dashboard display
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
 
 # Determine absolute path to the directory containing this script
 ROOT_DIR: Path = Path(__file__).resolve().parent
@@ -32,103 +23,236 @@ ROOT_DIR: Path = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT_DIR / 'src'))
 
 # Import text preprocessing and lexicon functions from sentiment_utils
-from sentiment_utils import clean_text, lexicon_sentiment, POSITIVE_WORDS, NEGATIVE_WORDS
+from sentiment_utils import clean_text, lexicon_sentiment, extract_aspect, is_noise, POSITIVE_WORDS, NEGATIVE_WORDS
 
 # Import the inference predictor class from predict module
 from predict import SentimentPredictor
 
 
 # ------------------------------------------------------------------------------
-# 1. STREAMLIT APPLICATION CONFIGURATION & STYLING
+# 1. STREAMLIT APPLICATION CONFIGURATION & PREMIUM STYLING
 # ------------------------------------------------------------------------------
 
-# Configure primary browser tab properties, viewport title, and responsive layout
 st.set_page_config(
-    page_title="Local Brand Sentiment Analyzer",  # Text displayed in the browser window tab
-    page_icon="📊",                              # Favicon emoji displayed in browser tab
-    layout="wide",                               # Utilize full horizontal screen width
-    initial_sidebar_state="expanded"             # Automatically expand the control sidebar
+    page_title="BrandSense AI • Local Brand Sentiment Intelligence",
+    page_icon="⚡",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Inject custom CSS styling to deliver a modern, polished visual aesthetic
+# Custom CSS styling for an executive dark-glass aesthetic
 st.markdown("""
 <style>
-    /* Global font family and typography adjustments */
-    html, body, [class*="css"] {
-        font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-    }
-    
-    /* Executive Metric Card Container Styling */
-    .metric-card {
-        background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
-        border: 1px solid #334155;
-        border-radius: 12px;
-        padding: 20px;
-        color: #F8FAFC;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
-        margin-bottom: 12px;
-    }
-    .metric-value {
-        font-size: 2.2rem;
-        font-weight: 700;
-        margin-bottom: 4px;
-        color: #38BDF8;
-    }
-    .metric-label {
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #94A3B8;
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    html, body, [class*="css"], .stMarkdown, .stText, p, span, div {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
-    /* Sentiment Badge Styling */
-    .badge-positive {
-        background-color: #065F46;
-        color: #34D399;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-weight: 700;
-        font-size: 1.1rem;
+    code, pre {
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+
+    /* Top decoration bar & general background polish */
+    .main .block-container {
+        padding-top: 1.8rem;
+        padding-bottom: 3.5rem;
+        max-width: 1400px;
+    }
+
+    /* Executive Hero Header */
+    .hero-banner {
+        background: radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.12) 0%, rgba(99, 102, 241, 0.08) 50%, rgba(15, 23, 42, 0.8) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 24px 28px;
+        margin-bottom: 24px;
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(12px);
+    }
+    .hero-title {
+        font-size: 2.1rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #F8FAFC 0%, #38BDF8 50%, #818CF8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 6px;
+        letter-spacing: -0.02em;
+    }
+    .hero-subtitle {
+        font-size: 0.95rem;
+        color: #94A3B8;
+        line-height: 1.5;
+        margin-bottom: 12px;
+    }
+    .badge-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #CBD5E1;
+        margin-right: 8px;
+    }
+    .pulse-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #10B981;
+        box-shadow: 0 0 8px #10B981;
         display: inline-block;
-        border: 1px solid #059669;
+    }
+
+    /* Executive Metric Card Container Styling */
+    .metric-card-pro {
+        background: linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 18px 20px;
+        color: #F8FAFC;
+        box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.35);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        backdrop-filter: blur(10px);
+        margin-bottom: 16px;
+    }
+    .metric-card-pro:hover {
+        transform: translateY(-2px);
+        border-color: rgba(56, 189, 248, 0.4);
+        box-shadow: 0 12px 28px -6px rgba(56, 189, 248, 0.15);
+    }
+    .metric-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    .metric-card-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94A3B8;
+        font-weight: 600;
+    }
+    .metric-card-icon {
+        font-size: 1.25rem;
+        opacity: 0.9;
+    }
+    .metric-card-value {
+        font-size: 2.1rem;
+        font-weight: 800;
+        line-height: 1.1;
+        margin-bottom: 6px;
+        letter-spacing: -0.02em;
+    }
+    .metric-card-subtext {
+        font-size: 0.8rem;
+        color: #64748B;
+        font-weight: 500;
+    }
+
+    /* Sentiment Result Highlight Cards */
+    .sentiment-result-card {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%);
+        border-radius: 14px;
+        padding: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        margin-top: 10px;
+    }
+    .badge-positive {
+        background: linear-gradient(135deg, rgba(6, 95, 70, 0.8) 0%, rgba(4, 120, 87, 0.9) 100%);
+        color: #A7F3D0;
+        padding: 8px 18px;
+        border-radius: 30px;
+        font-weight: 800;
+        font-size: 1.05rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #10B981;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
     }
     .badge-neutral {
-        background-color: #374151;
-        color: #9CA3AF;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-weight: 700;
-        font-size: 1.1rem;
-        display: inline-block;
-        border: 1px solid #4B5563;
+        background: linear-gradient(135deg, rgba(55, 65, 81, 0.8) 0%, rgba(75, 85, 99, 0.9) 100%);
+        color: #E2E8F0;
+        padding: 8px 18px;
+        border-radius: 30px;
+        font-weight: 800;
+        font-size: 1.05rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #64748B;
+        box-shadow: 0 4px 14px rgba(100, 116, 139, 0.25);
     }
     .badge-negative {
-        background-color: #881337;
-        color: #FB7185;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-weight: 700;
-        font-size: 1.1rem;
-        display: inline-block;
-        border: 1px solid #BE123C;
+        background: linear-gradient(135deg, rgba(136, 19, 55, 0.8) 0%, rgba(190, 18, 60, 0.9) 100%);
+        color: #FECDD3;
+        padding: 8px 18px;
+        border-radius: 30px;
+        font-weight: 800;
+        font-size: 1.05rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #F43F5E;
+        box-shadow: 0 4px 14px rgba(244, 63, 94, 0.25);
     }
 
     /* Keyword highlight styling */
     .token-pos {
-        background-color: rgba(16, 185, 129, 0.2);
-        color: #10B981;
+        background: rgba(16, 185, 129, 0.22);
+        color: #34D399;
         font-weight: 600;
-        padding: 2px 6px;
-        border-radius: 4px;
-        border-bottom: 2px solid #10B981;
+        padding: 2px 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(16, 185, 129, 0.4);
     }
     .token-neg {
-        background-color: rgba(244, 63, 94, 0.2);
-        color: #F43F5E;
+        background: rgba(244, 63, 94, 0.22);
+        color: #FB7185;
         font-weight: 600;
-        padding: 2px 6px;
-        border-radius: 4px;
-        border-bottom: 2px solid #F43F5E;
+        padding: 2px 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(244, 63, 94, 0.4);
+    }
+
+    /* Probability Micro Bar */
+    .prob-bar-container {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+        padding: 12px 14px;
+        text-align: center;
+    }
+
+    /* Custom Streamlit Tab Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding-bottom: 4px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px 8px 0 0;
+        padding: 10px 18px;
+        font-weight: 600;
+        font-size: 0.92rem;
+        color: #94A3B8;
+        border: none;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #38BDF8 !important;
+        background: rgba(56, 189, 248, 0.08) !important;
+        border-bottom: 2px solid #38BDF8 !important;
+    }
+
+    /* Sidebar Styling */
+    [data-testid="stSidebar"] {
+        background: #0B0F17 !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -140,148 +264,124 @@ st.markdown("""
 
 @st.cache_resource(show_spinner="Loading Sentiment Inference Pipeline...")
 def get_predictor() -> Optional[SentimentPredictor]:
-    """Instantiate and cache the SentimentPredictor model singleton.
-
-    Using st.cache_resource ensures the heavy scikit-learn models and
-    TF-IDF vocabulary are loaded from disk only once per server runtime.
-
-    Returns:
-        Optional[SentimentPredictor]: Instantiated predictor object or None on error.
-    """
+    """Instantiate and cache the SentimentPredictor model singleton."""
     try:
-        # Load and instantiate inference wrapper class
         return SentimentPredictor()
     except Exception as exc:
-        # Render warning on frontend if model weights are not found
         st.error(f"Failed to load trained model artifacts: {exc}")
         return None
 
 
 @st.cache_data(show_spinner="Loading Survey Results Data...")
 def load_survey_results() -> Optional[pd.DataFrame]:
-    """Read and cache preprocessed survey sentiment results from disk.
-
-    Returns:
-        Optional[pd.DataFrame]: DataFrame containing survey comments and labels.
-    """
-    # Define file path to the processed results CSV
+    """Read and cache preprocessed survey sentiment results from disk."""
     results_path: Path = ROOT_DIR / 'outputs' / 'sentiment_results.csv'
-    
-    # Check if the results file exists
     if results_path.exists():
-        # Load CSV into pandas DataFrame and return
         return pd.read_csv(results_path)
-    
-    # Return None if results file has not yet been generated
     return None
 
 
 @st.cache_data(show_spinner="Loading Model Performance Metrics...")
 def load_metrics_data() -> Optional[Dict[str, Any]]:
-    """Read and cache training performance metrics JSON from disk.
-
-    Returns:
-        Optional[Dict[str, Any]]: Dictionary containing evaluation metrics.
-    """
-    # Define file path to the metrics JSON file
+    """Read and cache training performance metrics JSON from disk."""
     metrics_path: Path = ROOT_DIR / 'outputs' / 'model_metrics.json'
-    
-    # Check if the metrics JSON exists
     if metrics_path.exists():
-        # Open and deserialize JSON file
         with open(metrics_path, 'r', encoding='utf-8') as f:
             return json.load(f)
-    
-    # Return None if metrics file does not exist
     return None
 
 
 # ------------------------------------------------------------------------------
-# 3. HELPER RENDERING FUNCTIONS
+# 3. SENTIMENT KEYWORD HIGHLIGHTING ENGINE
 # ------------------------------------------------------------------------------
 
 def highlight_sentiment_tokens(text: str) -> str:
-    """Format review text with HTML spans highlighting identified sentiment keywords.
+    """Scan tokens and render color-coded spans for positive and negative words."""
+    cleaned = clean_text(text)
+    tokens: List[str] = cleaned.split()
+    formatted_words: List[str] = []
 
-    Args:
-        text (str): Raw input comment string.
-
-    Returns:
-        str: HTML markup string with styled spans for positive and negative tokens.
-    """
-    # Split text into whitespace tokens
-    words = text.split()
-    
-    # List container for formatted token strings
-    formatted_words = []
-    
-    # Iterate over tokens and tag sentiment words
-    for word in words:
-        # Clean token for lexicon comparison
-        clean_word = clean_text(word)
-        
-        # Check if clean token belongs to positive lexicon
-        if clean_word in POSITIVE_WORDS:
-            # Wrap with green positive badge styling
-            formatted_words.append(f"<span class='token-pos'>{word}</span>")
-        
-        # Check if clean token belongs to negative lexicon
-        elif clean_word in NEGATIVE_WORDS:
-            # Wrap with red negative badge styling
-            formatted_words.append(f"<span class='token-neg'>{word}</span>")
-        
-        # Keep non-sentiment neutral tokens unstyled
+    for word in tokens:
+        if word in POSITIVE_WORDS:
+            formatted_words.append(f"<span class='token-pos'>✓ {word}</span>")
+        elif word in NEGATIVE_WORDS:
+            formatted_words.append(f"<span class='token-neg'>✕ {word}</span>")
         else:
             formatted_words.append(word)
-            
-    # Reassemble tokens with standard whitespace separation
-    return " ".join(formatted_words)
+
+    return " ".join(formatted_words) if formatted_words else "<em>No text tokens found</em>"
 
 
 # ------------------------------------------------------------------------------
 # 4. SIDEBAR NAVIGATION & SYSTEM STATUS
 # ------------------------------------------------------------------------------
 
-# Render persistent application sidebar
 with st.sidebar:
-    # Display project brand icon and title in sidebar
-    st.title("🎯 Navigation & Controls")
-    
-    # Render quick project abstract
-    st.info(
-        "**Local Brand Sentiment Analysis**\n\n"
-        "Natural Language Processing & Machine Learning dashboard analyzing customer "
-        "opinions of local brands on Instagram and Twitter."
-    )
-    
-    # Render system status indicators
-    st.markdown("### ⚙️ Engine Status")
-    
-    # Check if model binary is available
+    st.markdown("""
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+        <span style="font-size: 1.8rem;">⚡</span>
+        <div>
+            <div style="font-weight: 800; font-size: 1.15rem; color: #F8FAFC;">BrandSense AI</div>
+            <div style="font-size: 0.75rem; color: #38BDF8; font-weight: 600;">SENTIMENT INTELLIGENCE</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 12px; margin-bottom: 16px; font-size: 0.85rem; color: #94A3B8; line-height: 1.5;">
+        Production NLP pipeline analyzing consumer perception, brand reputation, and satisfaction across Instagram & Twitter empirical survey data.
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("### ⚙️ Engine Health")
     model_exists = (ROOT_DIR / 'models' / 'sentiment_model.joblib').exists()
-    st.write("• **ML Classifier:**", "🟢 Online" if model_exists else "🔴 Offline")
-    
-    # Check if results dataset is available
     results_exist = (ROOT_DIR / 'outputs' / 'sentiment_results.csv').exists()
-    st.write("• **Survey Dataset:**", "🟢 Loaded" if results_exist else "🔴 Missing")
-    
-    # Add link to source instructions
+
+    st.markdown(f"""
+    <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem; background: rgba(15, 23, 42, 0.6); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #CBD5E1;">ML Logistic Model</span>
+            <span style="color: {'#34D399' if model_exists else '#F43F5E'}; font-weight: 700;">{'● ONLINE' if model_exists else '○ OFFLINE'}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #CBD5E1;">Survey Dataset</span>
+            <span style="color: {'#34D399' if results_exist else '#F43F5E'}; font-weight: 700;">{'● LOADED' if results_exist else '○ MISSING'}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #CBD5E1;">Hybrid Consensus</span>
+            <span style="color: #34D399; font-weight: 700;">● ACTIVE</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("---")
-    st.caption("Powered by Scikit-Learn • Streamlit • TF-IDF • Python 3.13")
+    st.markdown("""
+    <div style="font-size: 0.75rem; color: #64748B; text-align: center;">
+        Scikit-Learn • TF-IDF • Streamlit • Python 3.13<br>
+        © 2026 BrandSense Intelligence
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ------------------------------------------------------------------------------
-# 5. MAIN DASHBOARD HEADER & EXECUTIVE METRICS
+# 5. MAIN DASHBOARD HERO & EXECUTIVE KPI METRICS
 # ------------------------------------------------------------------------------
 
-# Render primary title header
-st.title("📊 Local Brand Sentiment Intelligence Dashboard")
-
-# Render descriptive subtitle
-st.markdown(
-    "*Advanced Natural Language Processing pipeline analyzing consumer perception, brand reputation, "
-    "and customer sentiment on Instagram & Twitter.*"
-)
+# Render Hero Banner
+st.markdown("""
+<div class="hero-banner">
+    <div class="hero-title">Local Brand Sentiment Intelligence</div>
+    <div class="hero-subtitle">
+        Empirical Social Media (Instagram & Twitter) NLP Platform with Hybrid Machine Learning & Domain Lexicon Consensus.
+    </div>
+    <div>
+        <span class="badge-pill"><span class="pulse-dot"></span> Real-Time Inference</span>
+        <span class="badge-pill">🛡️ Balanced Class Weights</span>
+        <span class="badge-pill">🎯 TF-IDF Sublinear N-Grams</span>
+        <span class="badge-pill">📊 131 Empirical Survey Responses</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # Fetch cached dataset and metrics
 survey_df = load_survey_results()
@@ -290,72 +390,78 @@ predictor = get_predictor()
 
 # Compute summary KPI numbers if survey dataset is loaded
 if survey_df is not None:
-    # Total responses analyzed
     total_responses: int = len(survey_df)
-    
-    # Frequency counts of sentiment classes
     sentiment_counts = survey_df['sentiment'].value_counts()
     pos_count: int = int(sentiment_counts.get('Positive', 0))
     neu_count: int = int(sentiment_counts.get('Neutral', 0))
     neg_count: int = int(sentiment_counts.get('Negative', 0))
-    
-    # Compute percentage ratios
+
     pos_pct: float = (pos_count / total_responses) * 100 if total_responses else 0.0
     neu_pct: float = (neu_count / total_responses) * 100 if total_responses else 0.0
     neg_pct: float = (neg_count / total_responses) * 100 if total_responses else 0.0
 
-    # Layout 4 responsive metric columns
-    col1, col2, col3, col4 = st.columns(4)
-    
-    # Column 1: Total survey records
-    with col1:
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+
+    with kpi1:
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{total_responses}</div>
-            <div class="metric-label">Analyzed Comments</div>
+        <div class="metric-card-pro">
+            <div class="metric-card-header">
+                <span class="metric-card-label">Analyzed Corpus</span>
+                <span class="metric-card-icon">📑</span>
+            </div>
+            <div class="metric-card-value" style="color: #38BDF8;">{total_responses}</div>
+            <div class="metric-card-subtext">Total Verified Consumer Comments</div>
         </div>
         """, unsafe_allow_html=True)
-        
-    # Column 2: Positive sentiment volume and ratio
-    with col2:
+
+    with kpi2:
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value" style="color: #34D399;">{pos_count} <span style="font-size: 1rem; color: #94A3B8;">({pos_pct:.1f}%)</span></div>
-            <div class="metric-label">Positive Sentiment</div>
+        <div class="metric-card-pro">
+            <div class="metric-card-header">
+                <span class="metric-card-label">Positive Sentiment</span>
+                <span class="metric-card-icon">💚</span>
+            </div>
+            <div class="metric-card-value" style="color: #34D399;">{pos_count} <span style="font-size: 0.95rem; color: #94A3B8; font-weight: 500;">({pos_pct:.1f}%)</span></div>
+            <div class="metric-card-subtext">Delighted & Satisfied Feedback</div>
         </div>
         """, unsafe_allow_html=True)
-        
-    # Column 3: Neutral sentiment volume and ratio
-    with col3:
+
+    with kpi3:
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value" style="color: #94A3B8;">{neu_count} <span style="font-size: 1rem; color: #64748B;">({neu_pct:.1f}%)</span></div>
-            <div class="metric-label">Neutral / Objective</div>
+        <div class="metric-card-pro">
+            <div class="metric-card-header">
+                <span class="metric-card-label">Neutral / Objective</span>
+                <span class="metric-card-icon">⚪</span>
+            </div>
+            <div class="metric-card-value" style="color: #CBD5E1;">{neu_count} <span style="font-size: 0.95rem; color: #94A3B8; font-weight: 500;">({neu_pct:.1f}%)</span></div>
+            <div class="metric-card-subtext">Factual Inquiries & Attributes</div>
         </div>
         """, unsafe_allow_html=True)
-        
-    # Column 4: Negative sentiment volume and ratio
-    with col4:
+
+    with kpi4:
         st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value" style="color: #FB7185;">{neg_count} <span style="font-size: 1rem; color: #94A3B8;">({neg_pct:.1f}%)</span></div>
-            <div class="metric-label">Negative Grievance</div>
+        <div class="metric-card-pro">
+            <div class="metric-card-header">
+                <span class="metric-card-label">Negative Grievance</span>
+                <span class="metric-card-icon">🔴</span>
+            </div>
+            <div class="metric-card-value" style="color: #FB7185;">{neg_count} <span style="font-size: 0.95rem; color: #94A3B8; font-weight: 500;">({neg_pct:.1f}%)</span></div>
+            <div class="metric-card-subtext">Complaints, Delays & Critiques</div>
         </div>
         """, unsafe_allow_html=True)
 
 
 # ------------------------------------------------------------------------------
-# 6. TABBED DASHBOARD INTERFACE
+# 6. TABBED EXECUTIVE DASHBOARD
 # ------------------------------------------------------------------------------
 
-# Initialize organized navigation tabs for multi-dimensional analysis
 tab_predict, tab_overview, tab_wordclouds, tab_charts, tab_metrics, tab_data = st.tabs([
-    "🔍 Real-Time Predictor",
+    "⚡ Real-Time Predictor",
     "📈 Sentiment Distribution",
-    "☁️ Word Clouds",
-    "📊 Survey Analytics",
+    "☁️ Word Cloud Insights",
+    "📊 Consumer Survey Analytics",
     "🏆 Model Performance",
-    "📑 Survey Dataset Explorer"
+    "📑 Dataset Explorer"
 ])
 
 
@@ -363,186 +469,245 @@ tab_predict, tab_overview, tab_wordclouds, tab_charts, tab_metrics, tab_data = s
 # TAB 1: REAL-TIME INTERACTIVE SENTIMENT PREDICTOR
 # ==============================================================================
 with tab_predict:
-    # Render section header for interactive predictor tab
-    st.subheader("Interactive Customer Comment Sentiment Analyzer")
+    st.markdown("""
+    <div style="margin-bottom: 12px;">
+        <h3 style="margin-bottom: 4px; font-weight: 700;">Live Consumer Comment Analyzer</h3>
+        <p style="color: #94A3B8; font-size: 0.9rem;">
+            Test any customer feedback or review. The prediction leverages balanced Logistic Regression calibrated with domain negation lexicon consensus.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Render explanatory instructional description
-    st.markdown(
-        "Enter any social media comment or review about a local brand to predict sentiment using "
-        "the trained Machine Learning model cross-referenced with domain lexicon rules."
-    )
-
-    # Initialize persistent session state for comment text if not already defined
     if "user_comment_text" not in st.session_state:
-        # Prepopulate with a realistic positive customer review so sample output displays immediately
         st.session_state["user_comment_text"] = "The product quality is absolutely amazing and customer support responded super fast!"
 
-    # Initialize execution trigger flag in session state to auto-run on initial visit or preset selection
     if "run_analysis_flag" not in st.session_state:
-        # Set trigger flag to True so first page render displays instant results for the initial sample
         st.session_state["run_analysis_flag"] = True
 
-    # Define helper callback function to update sample comment and trigger analysis execution
     def select_preset_sample(sample_string: str) -> None:
-        """Callback to set selected preset review text into session state and flag analysis."""
-        # Store selected preset text into persistent session state
         st.session_state["user_comment_text"] = sample_string
-        # Set execution flag to True to immediately evaluate the selected sample
         st.session_state["run_analysis_flag"] = True
 
-    # Render label for quick-test sample preset buttons
-    st.write("**Quick-Test Example Comments:**")
+    st.markdown("<span style='font-size: 0.85rem; font-weight: 600; color: #94A3B8;'>Quick Example Presets:</span>", unsafe_allow_html=True)
+    p_col1, p_col2, p_col3 = st.columns(3)
 
-    # Divide horizontal space into 3 equal columns for sample buttons
-    preset_cols = st.columns(3)
-
-    # Render button for positive sample review with callback
-    preset_cols[0].button(
-        label="👍 Test Positive Review",
+    p_col1.button(
+        label="🌟 Positive Review (Praise)",
         on_click=select_preset_sample,
         args=("The product quality is absolutely amazing and customer support responded super fast!",),
         use_container_width=True
     )
-
-    # Render button for neutral sample inquiry with callback
-    preset_cols[1].button(
-        label="😐 Test Neutral Inquiry",
+    p_col2.button(
+        label="💬 Neutral Inquiry (Pricing/Catalog)",
         on_click=select_preset_sample,
         args=("I checked their social media page to see the latest collection and pricing details.",),
         use_container_width=True
     )
-
-    # Render button for negative sample complaint with callback
-    preset_cols[2].button(
-        label="👎 Test Negative Review",
+    p_col3.button(
+        label="⚠️ Negative Grievance (Delivery Delay)",
         on_click=select_preset_sample,
         args=("Terrible experience, very delayed delivery and completely rude customer service.",),
         use_container_width=True
     )
 
-    # Render interactive multi-line text input populated from session state
     user_comment: str = st.text_area(
-        label="Customer Review or Comment:",
+        label="Enter social media comment or review:",
         value=st.session_state["user_comment_text"],
-        placeholder="Type or paste a customer comment here...",
-        height=100
+        placeholder="Type or paste customer text...",
+        height=95,
+        label_visibility="collapsed"
     )
-
-    # Keep session state synchronized with manual text modifications typed by the user
     st.session_state["user_comment_text"] = user_comment
 
-    # Render primary analysis execution button spanning full container width
     analyze_button_clicked: bool = st.button("🚀 Analyze Sentiment", type="primary", use_container_width=True)
 
-    # Execute classification inference if user clicked the button or if auto-run flag is active
     if analyze_button_clicked or st.session_state.get("run_analysis_flag", False):
-        # Reset execution flag so subsequent re-renders require explicit user action
         st.session_state["run_analysis_flag"] = False
 
-        # Validate that the comment contains non-whitespace text
         if not user_comment.strip():
-            # Display warning prompt if text area is empty
             st.warning("Please provide a valid comment to analyze.")
-        # Ensure trained model pipeline is loaded and ready
         elif predictor is None:
-            # Display error notice if model artifacts are missing
             st.error("Prediction engine is currently unavailable. Please run src/train_model.py first.")
         else:
-            # Execute inference pipeline returning detailed dictionary payload
             result: Dict[str, Any] = predictor.predict(user_comment)
-
-            # Extract final consensus sentiment label ('Positive', 'Neutral', 'Negative')
             predicted_sentiment: str = str(result['sentiment'])
-
-            # Extract calibrated confidence score metric (0.0 to 1.0)
             confidence_val: float = float(result['confidence'])
+            probs: Dict[str, float] = result['probabilities']
 
-            # Render visual horizontal divider separating inputs from results
-            st.markdown("---")
+            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 
-            # Create 2 unequal columns (1:2 ratio) for primary badge and probability details
-            res_col1, res_col2 = st.columns([1, 2])
+            res_col1, res_col2 = st.columns([1, 1.4])
 
-            # Render primary prediction card in left column
             with res_col1:
-                # Subheading for classification summary
-                st.markdown("#### Primary Classification")
+                st.markdown("""
+                <div class="sentiment-result-card">
+                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: #94A3B8; font-weight: 600; margin-bottom: 8px;">
+                        Primary Classification
+                    </div>
+                """, unsafe_allow_html=True)
 
-                # Render green badge for positive sentiment
                 if predicted_sentiment == 'Positive':
                     st.markdown("<div class='badge-positive'>🟢 POSITIVE SENTIMENT</div>", unsafe_allow_html=True)
-                # Render red badge for negative sentiment
                 elif predicted_sentiment == 'Negative':
                     st.markdown("<div class='badge-negative'>🔴 NEGATIVE SENTIMENT</div>", unsafe_allow_html=True)
-                # Render gray badge for neutral sentiment
                 else:
                     st.markdown("<div class='badge-neutral'>⚪ NEUTRAL SENTIMENT</div>", unsafe_allow_html=True)
 
-                # Render confidence score percentage text
-                st.markdown(f"**Confidence Score:** `{confidence_val * 100:.1f}%`")
+                detected_aspect = result.get('primary_aspect', extract_aspect(user_comment))
 
-                # Render animated progress meter representing confidence level
+                st.markdown(f"""
+                    <div style="margin-top: 12px; margin-bottom: 8px;">
+                        <span class="badge-pill" style="border-color: rgba(56, 189, 248, 0.3);">📌 Aspect: <strong style="color: #38BDF8;">{detected_aspect}</strong></span>
+                    </div>
+                    <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem;">
+                        <span style="color: #94A3B8;">Model Confidence</span>
+                        <span style="font-weight: 700; color: #38BDF8;">{confidence_val * 100:.1f}%</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
                 st.progress(float(confidence_val))
 
-            # Render posterior probability breakdown in right column
             with res_col2:
-                # Subheading for probability distribution
-                st.markdown("#### Posterior Class Probability Breakdown")
+                st.markdown("""
+                <div class="sentiment-result-card">
+                    <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: #94A3B8; font-weight: 600; margin-bottom: 8px;">
+                        Posterior Probability Distribution
+                    </div>
+                """, unsafe_allow_html=True)
 
-                # Divide space into 3 sub-columns for Positive, Neutral, Negative percentages
                 prob_cols = st.columns(3)
-
-                # Retrieve class probabilities dictionary from result payload
-                probs: Dict[str, float] = result['probabilities']
-
-                # Display Positive probability metric
                 with prob_cols[0]:
-                    st.metric("Positive", f"{probs.get('Positive', 0.0) * 100:.1f}%")
-
-                # Display Neutral probability metric
+                    st.markdown(f"""
+                    <div class="prob-bar-container">
+                        <div style="color: #34D399; font-weight: 800; font-size: 1.3rem;">{probs.get('Positive', 0.0) * 100:.1f}%</div>
+                        <div style="font-size: 0.75rem; color: #94A3B8; font-weight: 600;">POSITIVE</div>
+                    </div>
+                    """, unsafe_allow_html=True)
                 with prob_cols[1]:
-                    st.metric("Neutral", f"{probs.get('Neutral', 0.0) * 100:.1f}%")
-
-                # Display Negative probability metric
+                    st.markdown(f"""
+                    <div class="prob-bar-container">
+                        <div style="color: #CBD5E1; font-weight: 800; font-size: 1.3rem;">{probs.get('Neutral', 0.0) * 100:.1f}%</div>
+                        <div style="font-size: 0.75rem; color: #94A3B8; font-weight: 600;">NEUTRAL</div>
+                    </div>
+                    """, unsafe_allow_html=True)
                 with prob_cols[2]:
-                    st.metric("Negative", f"{probs.get('Negative', 0.0) * 100:.1f}%")
+                    st.markdown(f"""
+                    <div class="prob-bar-container">
+                        <div style="color: #FB7185; font-weight: 800; font-size: 1.3rem;">{probs.get('Negative', 0.0) * 100:.1f}%</div>
+                        <div style="font-size: 0.75rem; color: #94A3B8; font-weight: 600;">NEGATIVE</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-            # Render keyword token highlight section
-            st.markdown("#### 🔎 Sentiment Keyword Token Extraction")
+                st.markdown("</div>", unsafe_allow_html=True)
 
-            # Generate HTML string with highlighted sentiment token spans
+            # Keyword Token Extraction
+            st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
+            st.markdown("##### 🔎 Sentiment Keyword Token Extraction")
             highlighted_html: str = highlight_sentiment_tokens(user_comment)
+            st.markdown(f"""
+            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.08); padding: 14px 18px; border-radius: 10px; font-size: 1rem; line-height: 1.8;">
+                {highlighted_html}
+            </div>
+            """, unsafe_allow_html=True)
 
-            # Render styled HTML tokens with colored backgrounds
-            st.markdown(f"<div style='font-size: 1.1rem; line-height: 1.8;'>{highlighted_html}</div>", unsafe_allow_html=True)
-
-            # Render expandable accordion providing technical explanation and audit trail
-            with st.expander("ℹ️ View Technical Consensus Rationale"):
-                # Display raw ML Logistic Regression output
-                st.write(f"• **ML Model Raw Output:** {result['ml_sentiment']}")
-                # Display deterministic lexicon polarity and score
-                st.write(f"• **Lexicon Polarity Output:** {result['lexicon_sentiment']} (Cumulative Score: {result['lexicon_score']})")
-                # Display complete consensus rationale text
-                st.write(f"• **Consensus Explanation:** {result['explanation']}")
+            # Rationale Accordion
+            with st.expander("ℹ️ Technical Consensus Rationale"):
+                st.markdown(f"""
+                - **ML Logistic Classifier Output:** `{result['ml_sentiment']}`
+                - **Lexicon Polarity Output:** `{result['lexicon_sentiment']}` (Score: `{result['lexicon_score']}`)
+                - **Consensus Rationale:** {result['explanation']}
+                """)
 
 
 # ==============================================================================
 # TAB 2: SENTIMENT DISTRIBUTION OVERVIEW
 # ==============================================================================
 with tab_overview:
-    st.subheader("Sentiment Distribution in Survey Dataset")
+    st.subheader("Sentiment Distribution in Empirical Survey")
     if survey_df is not None:
-        chart_data = survey_df['sentiment'].value_counts()
-        
-        c_left, c_right = st.columns([2, 1])
+        s_counts = survey_df['sentiment'].value_counts().reset_index()
+        s_counts.columns = ['Sentiment', 'Count']
+
+        color_map = {
+            'Positive': '#10B981',
+            'Neutral': '#64748B',
+            'Negative': '#F43F5E'
+        }
+
+        c_left, c_right = st.columns([1.4, 1])
+
         with c_left:
-            st.bar_chart(chart_data)
+            fig = px.pie(
+                s_counts,
+                values='Count',
+                names='Sentiment',
+                color='Sentiment',
+                color_discrete_map=color_map,
+                hole=0.55,
+                title="Overall Sentiment Share"
+            )
+            fig.update_traces(
+                textposition='inside',
+                textinfo='percent+label',
+                marker=dict(line=dict(color='#0F172A', width=2))
+            )
+            fig.update_layout(
+                showlegend=True,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#E2E8F0', family='Plus Jakarta Sans'),
+                margin=dict(t=40, b=20, l=10, r=10),
+                legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
         with c_right:
-            st.markdown("#### Breakdown Summary")
-            st.write(f"• **Neutral:** {chart_data.get('Neutral', 0)} ({chart_data.get('Neutral', 0) / len(survey_df) * 100:.1f}%)")
-            st.write(f"• **Positive:** {chart_data.get('Positive', 0)} ({chart_data.get('Positive', 0) / len(survey_df) * 100:.1f}%)")
-            st.write(f"• **Negative:** {chart_data.get('Negative', 0)} ({chart_data.get('Negative', 0) / len(survey_df) * 100:.1f}%)")
-            st.caption("Neutral responses dominate because many respondents listed objective criteria like 'price' or 'comments' rather than emotional evaluations.")
+            st.markdown("""
+            <div style="background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255,255,255,0.06); padding: 20px; border-radius: 12px; margin-top: 20px;">
+                <h4 style="margin-bottom: 12px; color: #F8FAFC;">Distribution Breakdown</h4>
+            """, unsafe_allow_html=True)
+            for _, row in s_counts.iterrows():
+                pct = (row['Count'] / len(survey_df)) * 100
+                color = color_map.get(row['Sentiment'], '#CBD5E1')
+                st.markdown(f"""
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-weight: 600; color: {color};">● {row['Sentiment']}</span>
+                    <span style="color: #F8FAFC; font-weight: 700;">{row['Count']} <span style="color: #94A3B8; font-size: 0.85rem;">({pct:.1f}%)</span></span>
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.caption("Neutral responses dominate because many respondents noted objective product attributes (such as 'price' or 'comments') rather than strong emotional reviews.")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        # Aspect Distribution Chart
+        if 'primary_aspect' in survey_df.columns:
+            st.markdown("---")
+            st.markdown("#### 🎯 Business Domain Drivers & Key Focus Areas")
+            st.markdown("Primary operational aspects identified in customer opinion responses:")
+
+            asp_counts = survey_df[~survey_df.get('is_noise', False)]['primary_aspect'].value_counts().reset_index()
+            asp_counts.columns = ['Aspect', 'Mentions']
+
+            fig_asp = px.bar(
+                asp_counts,
+                x='Mentions',
+                y='Aspect',
+                orientation='h',
+                color='Aspect',
+                title="Consumer Opinion Frequency by Domain Aspect",
+                color_discrete_sequence=['#38BDF8', '#818CF8', '#34D399', '#FBBF24', '#F43F5E', '#94A3B8']
+            )
+            fig_asp.update_layout(
+                showlegend=False,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#E2E8F0', family='Plus Jakarta Sans'),
+                xaxis=dict(gridcolor='rgba(255,255,255,0.06)', title="Number of Customer Comments"),
+                yaxis=dict(autorange="reversed", title=""),
+                margin=dict(t=40, b=20, l=10, r=10)
+            )
+            st.plotly_chart(fig_asp, use_container_width=True)
     else:
         st.info("Run `python run_project.py` to generate sentiment results.")
 
@@ -552,13 +717,29 @@ with tab_overview:
 # ==============================================================================
 with tab_wordclouds:
     st.subheader("Customer Opinion & Suggestion Term Clouds")
+    st.markdown("High-frequency terms extracted and visualized using Natural Language Processing normalization.")
+
     wc1_path = ROOT_DIR / 'outputs' / 'wordcloud_opinions.png'
     wc2_path = ROOT_DIR / 'outputs' / 'wordcloud_suggestions.png'
 
-    if wc1_path.exists():
-        st.image(str(wc1_path), caption="Most Salient Keywords in Customer Brand Opinions", use_container_width=True)
-    if wc2_path.exists():
-        st.image(str(wc2_path), caption="Most Salient Keywords in Customer Improvement Suggestions", use_container_width=True)
+    wc_col1, wc_col2 = st.columns(2)
+    with wc_col1:
+        if wc1_path.exists():
+            st.markdown("""
+            <div style="border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; background: rgba(15,23,42,0.6); padding: 12px;">
+                <h5 style="margin-bottom: 8px;">💭 Customer Brand Opinions</h5>
+            """, unsafe_allow_html=True)
+            st.image(str(wc1_path), use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    with wc_col2:
+        if wc2_path.exists():
+            st.markdown("""
+            <div style="border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; background: rgba(15,23,42,0.6); padding: 12px;">
+                <h5 style="margin-bottom: 8px;">💡 Improvement Suggestions</h5>
+            """, unsafe_allow_html=True)
+            st.image(str(wc2_path), use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ==============================================================================
@@ -566,16 +747,25 @@ with tab_wordclouds:
 # ==============================================================================
 with tab_charts:
     st.subheader("Survey Question Analytics & Customer Behavior")
-    chart_files = sorted(list((ROOT_DIR / 'outputs').glob('chart_*.png')))
+    st.markdown("Exploratory Data Analysis generated from multi-choice customer responses.")
 
+    chart_files = sorted(list((ROOT_DIR / 'outputs').glob('chart_*.png')))
     if chart_files:
         for i in range(0, len(chart_files), 2):
             g_cols = st.columns(2)
             with g_cols[0]:
+                st.markdown(f"""
+                <div style="border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; background: rgba(15,23,42,0.6); padding: 10px; margin-bottom: 16px;">
+                """, unsafe_allow_html=True)
                 st.image(str(chart_files[i]), use_container_width=True)
+                st.markdown("</div>", unsafe_allow_html=True)
             if i + 1 < len(chart_files):
                 with g_cols[1]:
+                    st.markdown(f"""
+                    <div style="border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; background: rgba(15,23,42,0.6); padding: 10px; margin-bottom: 16px;">
+                    """, unsafe_allow_html=True)
                     st.image(str(chart_files[i + 1]), use_container_width=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
     else:
         st.info("No survey charts found. Run `python src/analyze_data.py` to generate them.")
 
@@ -588,14 +778,34 @@ with tab_metrics:
     if metrics_dict is not None:
         m_c1, m_c2, m_c3 = st.columns(3)
         with m_c1:
-            st.metric("Total Samples", metrics_dict.get('total_samples_trained', 'N/A'))
+            st.markdown(f"""
+            <div class="metric-card-pro">
+                <div class="metric-card-label">Training Corpus</div>
+                <div class="metric-card-value" style="color: #38BDF8;">{metrics_dict.get('total_samples_trained', 'N/A')}</div>
+                <div class="metric-card-subtext">Total Verified Training Samples</div>
+            </div>
+            """, unsafe_allow_html=True)
         with m_c2:
             acc = metrics_dict.get('accuracy')
-            st.metric("Test Accuracy", f"{acc * 100:.2f}%" if acc is not None else "Full Corpus")
+            acc_str = f"{acc * 100:.2f}%" if acc is not None else "N/A"
+            st.markdown(f"""
+            <div class="metric-card-pro">
+                <div class="metric-card-label">Validation Accuracy</div>
+                <div class="metric-card-value" style="color: #34D399;">{acc_str}</div>
+                <div class="metric-card-subtext">Hold-Out Validation Performance</div>
+            </div>
+            """, unsafe_allow_html=True)
         with m_c3:
-            st.metric("Algorithm", "Balanced Logistic Regression")
+            st.markdown("""
+            <div class="metric-card-pro">
+                <div class="metric-card-label">Classification Engine</div>
+                <div class="metric-card-value" style="color: #818CF8; font-size: 1.6rem; margin-top: 6px;">Balanced LR</div>
+                <div class="metric-card-subtext">Logistic Regression with L2 Regularization</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-        st.markdown("#### Classification Report (Hold-Out Validation)")
+        st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+        st.markdown("#### Classification Report")
         report_file = ROOT_DIR / 'outputs' / 'classification_report.csv'
         if report_file.exists():
             rep_df = pd.read_csv(report_file, index_col=0)
@@ -616,22 +826,52 @@ with tab_metrics:
 with tab_data:
     st.subheader("Survey Dataset Explorer")
     if survey_df is not None:
-        f_col1, f_col2 = st.columns([1, 2])
+        f_col1, f_col2, f_col3 = st.columns([1, 1, 1.5])
         with f_col1:
             sentiment_filter = st.selectbox("Filter by Sentiment:", ["All", "Positive", "Neutral", "Negative"])
         with f_col2:
-            search_query = st.text_input("Search in text:", "")
+            aspect_options = ["All"]
+            if 'primary_aspect' in survey_df.columns:
+                aspect_options += sorted([str(a) for a in survey_df['primary_aspect'].dropna().unique() if a])
+            aspect_filter = st.selectbox("Filter by Aspect:", aspect_options)
+        with f_col3:
+            search_query = st.text_input("Search in comment text:", "", placeholder="Type keywords like 'delivery', 'quality', 'price'...")
+
+        hide_noise = st.checkbox("🔍 Filter out non-informative / placeholder answers (e.g. 'idk', '-', 'none')", value=False)
 
         filtered_df = survey_df.copy()
+        if hide_noise and 'is_noise' in filtered_df.columns:
+            filtered_df = filtered_df[~filtered_df['is_noise']]
         if sentiment_filter != "All":
             filtered_df = filtered_df[filtered_df['sentiment'] == sentiment_filter]
+        if aspect_filter != "All" and 'primary_aspect' in filtered_df.columns:
+            filtered_df = filtered_df[filtered_df['primary_aspect'] == aspect_filter]
         if search_query.strip():
             filtered_df = filtered_df[filtered_df['text'].str.contains(search_query, case=False, na=False)]
 
-        st.write(f"Showing {len(filtered_df)} matching responses:")
-        st.dataframe(filtered_df[['text', 'sentiment', 'clean_text', 'lexicon_score']], use_container_width=True)
+        st.markdown(f"""
+        <div style="display: flex; gap: 18px; background: rgba(15, 23, 42, 0.6); padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); margin-bottom: 12px; font-size: 0.88rem;">
+            <span>Filtered Records: <strong style="color: #38BDF8;">{len(filtered_df)}</strong> of {len(survey_df)}</span>
+            <span>Sentiment Filter: <strong style="color: #F8FAFC;">{sentiment_filter}</strong></span>
+            <span>Aspect Filter: <strong style="color: #F8FAFC;">{aspect_filter}</strong></span>
+        </div>
+        """, unsafe_allow_html=True)
 
-        # Download CSV button
+        cols_to_show = ['text', 'clean_text', 'sentiment']
+        rename_dict = {
+            'text': 'Raw Comment',
+            'clean_text': 'Sanitized & Normalized Text',
+            'sentiment': 'Calibrated Sentiment'
+        }
+        if 'primary_aspect' in filtered_df.columns:
+            cols_to_show.append('primary_aspect')
+            rename_dict['primary_aspect'] = 'Business Aspect'
+        if 'lexicon_score' in filtered_df.columns:
+            cols_to_show.append('lexicon_score')
+            rename_dict['lexicon_score'] = 'Polarity Score'
+
+        st.dataframe(filtered_df[cols_to_show].rename(columns=rename_dict), use_container_width=True)
+
         csv_data = filtered_df.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="📥 Download Filtered Data as CSV",

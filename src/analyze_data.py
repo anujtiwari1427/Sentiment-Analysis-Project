@@ -121,7 +121,10 @@ def generate_wordcloud(
     custom_stopwords = set(STOPWORDS)
     
     # Add domain noise words that do not add distinct sentiment signal
-    custom_stopwords.update({'brand', 'brands', 'local', 'social', 'media', 'product', 'products', 'make', 'makes'})
+    custom_stopwords.update({
+        'brand', 'brands', 'local', 'social', 'media', 'product', 'products', 'make', 'makes',
+        'etc', 'idk', 'hm', 'hh', 'none', 'nothing', 'else', 'comments', 'view'
+    })
 
     # Instantiate the WordCloud generator with high resolution and crisp font rendering
     wordcloud_generator = WordCloud(

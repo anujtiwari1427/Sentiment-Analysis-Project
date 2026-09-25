@@ -47,7 +47,7 @@ ROOT_DIR: Path = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT_DIR / 'src'))
 
 # Import text preprocessing functions and dynamic column detection from sentiment_utils
-from sentiment_utils import clean_text, lexicon_sentiment, load_text_column
+from sentiment_utils import clean_text, lexicon_sentiment, load_text_column, extract_aspect, is_noise
 
 # Define standard filesystem paths for data input, model binaries, and output reports
 DATA_FILE_PATH: Path = ROOT_DIR / 'data' / 'survey_responses.xlsx'
@@ -110,6 +110,10 @@ def load_and_preprocess_data(data_path: Path) -> Tuple[pd.DataFrame, str]:
 
     # Assign integer lexicon polarity score for analytical auditing and distribution checks
     processed_df['lexicon_score'] = [st[1] for st in sentiment_tuples]
+
+    # Assign domain aspect tag and noise indicator
+    processed_df['primary_aspect'] = processed_df['clean_text'].apply(extract_aspect)
+    processed_df['is_noise'] = processed_df['clean_text'].apply(is_noise)
 
     # Inspect class frequency distribution across the generated sentiment categories
     class_frequencies: pd.Series = processed_df['sentiment'].value_counts()
