@@ -12,9 +12,14 @@ import sys
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
+
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+    HAS_PLOTLY = True
+except ImportError:
+    HAS_PLOTLY = False
 
 # Determine absolute path to the directory containing this script
 ROOT_DIR: Path = Path(__file__).resolve().parent
@@ -638,29 +643,32 @@ with tab_overview:
         c_left, c_right = st.columns([1.4, 1])
 
         with c_left:
-            fig = px.pie(
-                s_counts,
-                values='Count',
-                names='Sentiment',
-                color='Sentiment',
-                color_discrete_map=color_map,
-                hole=0.55,
-                title="Overall Sentiment Share"
-            )
-            fig.update_traces(
-                textposition='inside',
-                textinfo='percent+label',
-                marker=dict(line=dict(color='#0F172A', width=2))
-            )
-            fig.update_layout(
-                showlegend=True,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#E2E8F0', family='Plus Jakarta Sans'),
-                margin=dict(t=40, b=20, l=10, r=10),
-                legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5)
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            if HAS_PLOTLY:
+                fig = px.pie(
+                    s_counts,
+                    values='Count',
+                    names='Sentiment',
+                    color='Sentiment',
+                    color_discrete_map=color_map,
+                    hole=0.55,
+                    title="Overall Sentiment Share"
+                )
+                fig.update_traces(
+                    textposition='inside',
+                    textinfo='percent+label',
+                    marker=dict(line=dict(color='#0F172A', width=2))
+                )
+                fig.update_layout(
+                    showlegend=True,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='#E2E8F0', family='Plus Jakarta Sans'),
+                    margin=dict(t=40, b=20, l=10, r=10),
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5)
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.bar_chart(survey_df['sentiment'].value_counts())
 
         with c_right:
             st.markdown("""
@@ -689,25 +697,28 @@ with tab_overview:
             asp_counts = survey_df[~survey_df.get('is_noise', False)]['primary_aspect'].value_counts().reset_index()
             asp_counts.columns = ['Aspect', 'Mentions']
 
-            fig_asp = px.bar(
-                asp_counts,
-                x='Mentions',
-                y='Aspect',
-                orientation='h',
-                color='Aspect',
-                title="Consumer Opinion Frequency by Domain Aspect",
-                color_discrete_sequence=['#38BDF8', '#818CF8', '#34D399', '#FBBF24', '#F43F5E', '#94A3B8']
-            )
-            fig_asp.update_layout(
-                showlegend=False,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#E2E8F0', family='Plus Jakarta Sans'),
-                xaxis=dict(gridcolor='rgba(255,255,255,0.06)', title="Number of Customer Comments"),
-                yaxis=dict(autorange="reversed", title=""),
-                margin=dict(t=40, b=20, l=10, r=10)
-            )
-            st.plotly_chart(fig_asp, use_container_width=True)
+            if HAS_PLOTLY:
+                fig_asp = px.bar(
+                    asp_counts,
+                    x='Mentions',
+                    y='Aspect',
+                    orientation='h',
+                    color='Aspect',
+                    title="Consumer Opinion Frequency by Domain Aspect",
+                    color_discrete_sequence=['#38BDF8', '#818CF8', '#34D399', '#FBBF24', '#F43F5E', '#94A3B8']
+                )
+                fig_asp.update_layout(
+                    showlegend=False,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='#E2E8F0', family='Plus Jakarta Sans'),
+                    xaxis=dict(gridcolor='rgba(255,255,255,0.06)', title="Number of Customer Comments"),
+                    yaxis=dict(autorange="reversed", title=""),
+                    margin=dict(t=40, b=20, l=10, r=10)
+                )
+                st.plotly_chart(fig_asp, use_container_width=True)
+            else:
+                st.bar_chart(asp_counts.set_index('Aspect'))
     else:
         st.info("Run `python run_project.py` to generate sentiment results.")
 
